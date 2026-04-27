@@ -1,18 +1,27 @@
-const { Resend } = require('resend');
+const Mailjet = require('node-mailjet');
 const { logError } = require('../utils/logger');
 
 async function sendEnrichedCSV(recipientEmail, csvContent) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const client = Mailjet.apiConnect(
+    process.env.MAILJET_API_KEY,
+    process.env.MAILJET_SECRET_KEY
+  );
+
   try {
-    await resend.emails.send({
-      from: 'Lead Enrichment <onboarding@resend.dev>',
-      to: recipientEmail,
-      subject: 'Your Enriched Lead CSV',
-      text: 'Your enriched lead data is attached.',
-      attachments: [
+    await client.post('send', { version: 'v3.1' }).request({
+      Messages: [
         {
-          filename: `enriched-leads-${Date.now()}.csv`,
-          content: Buffer.from(csvContent).toString('base64'),
+          From: { Email: process.env.MAILJET_SENDER_EMAIL, Name: 'Lead Enrichment' },
+          To: [{ Email: recipientEmail }],
+          Subject: 'Your Enriched Lead CSV',
+          TextPart: 'Your enriched lead data is attached.',
+          Attachments: [
+            {
+              ContentType: 'text/csv',
+              Filename: `enriched-leads-${Date.now()}.csv`,
+              Base64Content: Buffer.from(csvContent).toString('base64'),
+            },
+          ],
         },
       ],
     });

@@ -81,18 +81,20 @@ router.get('/test', async (req, res) => {
   // 1. Env vars (instant)
   results.env = {
     GROQ_API_KEY: !!process.env.GROQ_API_KEY,
-    RESEND_API_KEY: !!process.env.RESEND_API_KEY,
+    MAILJET_API_KEY: !!process.env.MAILJET_API_KEY,
+    MAILJET_SECRET_KEY: !!process.env.MAILJET_SECRET_KEY,
+    MAILJET_SENDER_EMAIL: !!process.env.MAILJET_SENDER_EMAIL,
     NEWS_API_KEY: !!process.env.NEWS_API_KEY,
   };
 
-  // 2. Resend
+  // 2. Mailjet
   try {
-    const { Resend } = require('resend');
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    await withTimeout(resend.domains.list(), 8000, 'resend');
-    results.resend = 'OK';
+    const Mailjet = require('node-mailjet');
+    const client = Mailjet.apiConnect(process.env.MAILJET_API_KEY, process.env.MAILJET_SECRET_KEY);
+    await withTimeout(client.get('sender', { version: 'v3' }).request(), 8000, 'mailjet');
+    results.mailjet = 'OK';
   } catch (err) {
-    results.resend = `FAILED: ${err.message}`;
+    results.mailjet = `FAILED: ${err.message}`;
   }
 
   // 3. Groq
@@ -133,7 +135,7 @@ router.get('/test', async (req, res) => {
     results.duckduckgo = `FAILED: ${err.message}`;
   }
 
-  const allOk = results.resend === 'OK' && results.groq === 'OK' && results.newsapi === 'OK';
+  const allOk = results.mailjet === 'OK' && results.groq === 'OK' && results.newsapi === 'OK';
   res.status(allOk ? 200 : 500).json(results);
 });
 
