@@ -81,22 +81,18 @@ router.get('/test', async (req, res) => {
   // 1. Env vars (instant)
   results.env = {
     GROQ_API_KEY: !!process.env.GROQ_API_KEY,
-    GMAIL_USER: !!process.env.GMAIL_USER,
-    GMAIL_APP_PASSWORD: !!process.env.GMAIL_APP_PASSWORD,
+    RESEND_API_KEY: !!process.env.RESEND_API_KEY,
     NEWS_API_KEY: !!process.env.NEWS_API_KEY,
   };
 
-  // 2. Gmail
+  // 2. Resend
   try {
-    const nodemailer = require('nodemailer');
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    });
-    await withTimeout(transporter.verify(), 8000, 'gmail');
-    results.gmail = 'OK';
+    const { Resend } = require('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    await withTimeout(resend.domains.list(), 8000, 'resend');
+    results.resend = 'OK';
   } catch (err) {
-    results.gmail = `FAILED: ${err.message}`;
+    results.resend = `FAILED: ${err.message}`;
   }
 
   // 3. Groq
@@ -137,7 +133,7 @@ router.get('/test', async (req, res) => {
     results.duckduckgo = `FAILED: ${err.message}`;
   }
 
-  const allOk = results.gmail === 'OK' && results.groq === 'OK' && results.newsapi === 'OK';
+  const allOk = results.resend === 'OK' && results.groq === 'OK' && results.newsapi === 'OK';
   res.status(allOk ? 200 : 500).json(results);
 });
 
