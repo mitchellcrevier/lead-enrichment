@@ -67,4 +67,68 @@ router.post('/upload', upload.single('csv'), (req, res) => {
   })();
 });
 
+// Diagnostic endpoint — hit /api/test on Railway to check each service
+router.get('/test', async (req, res) => {
+  const results = {};
+
+  // 1. Gmail
+  try {
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+    });
+    await transporter.verify();
+    results.gmail = 'OK';
+  } catch (err) {
+    results.gmail = `FAILED: ${err.message}`;
+  }
+
+  // 2. Groq
+  try {
+    const Groq = require('groq-sdk');
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: 'Reply with the word OK only.' }],
+      max_tokens: 5,
+    });
+    results.groq = 'OK';
+  } catch (err) {
+    results.groq = `FAILED: ${err.message}`;
+  }
+
+  // 3. NewsAPI
+  try {
+    const axios = require('axios');
+    const { data } = await axios.get('https://newsapi.org/v2/everything', {
+      params: { q: 'Apple', pageSize: 1, apiKey: process.env.NEWS_API_KEY },
+      timeout: 8000,
+    });
+    results.newsapi = data.status === 'ok' ? 'OK' : `FAILED: ${data.message}`;
+  } catch (err) {
+    results.newsapi = `FAILED: ${err.message}`;
+  }
+
+  // 4. DuckDuckGo
+  try {
+    const axios = require('axios');
+    await axios.get('https://api.duckduckgo.com/?q=Apple&format=json', { timeout: 8000 });
+    results.duckduckgo = 'OK';
+  } catch (err) {
+    results.duckduckgo = `FAILED: ${err.message}`;
+  }
+
+  // 5. Env vars present
+  results.env = {
+    GROQ_API_KEY: !!process.env.GROQ_API_KEY,
+    GMAIL_USER: !!process.env.GMAIL_USER,
+    GMAIL_APP_PASSWORD: !!process.env.GMAIL_APP_PASSWORD,
+    NEWS_API_KEY: !!process.env.NEWS_API_KEY,
+  };
+
+  const allOk = results.gmail === 'OK' && results.groq === 'OK' && results.newsapi === 'OK';
+  res.status(allOk ? 200 : 500).json(results);
+});
+
 module.exports = router;

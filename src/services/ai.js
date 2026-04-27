@@ -1,8 +1,11 @@
 const Groq = require('groq-sdk');
 const { logError } = require('../utils/logger');
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MODEL = 'llama-3.3-70b-versatile';
+
+function getClient() {
+  return new Groq({ apiKey: process.env.GROQ_API_KEY });
+}
 
 async function extractCompanyProfile({ companyName, website, websiteText, ddgData }) {
   const prompt = `You are a B2B research analyst. Based on the data below, extract a structured company profile.
@@ -30,7 +33,7 @@ Return ONLY valid JSON in this exact structure:
 }`;
 
   try {
-    const res = await groq.chat.completions.create({
+    const res = await getClient().chat.completions.create({
       model: MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
@@ -77,7 +80,7 @@ Return ONLY valid JSON in this exact structure:
 }`;
 
   try {
-    const res = await groq.chat.completions.create({
+    const res = await getClient().chat.completions.create({
       model: MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.4,
