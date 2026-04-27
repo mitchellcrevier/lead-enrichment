@@ -52,7 +52,6 @@
     }
     input[type="email"]:focus { border-color: #FFD33B; box-shadow: 0 0 0 3px rgba(255,211,59,0.15); }
 
-    /* Empty state — dashed drop zone */
     .file-drop {
       border: 2px dashed #e0e0e0;
       border-radius: 6px;
@@ -66,7 +65,6 @@
     .file-drop .drop-label { font-size: 0.875rem; color: #686868; }
     .file-drop .drop-label span { color: #020202; font-weight: 600; }
 
-    /* Filled state */
     .file-filled {
       display: none;
       align-items: center;
@@ -130,9 +128,24 @@
     }
     button[type="submit"]:hover:not(:disabled) { background: #f0c520; }
     button[type="submit"]:disabled { background: #e0e0e0; color: #999; cursor: not-allowed; }
-    #status { margin-top: 16px; font-size: 0.875rem; text-align: center; min-height: 20px; }
+
+    #status {
+      margin-top: 16px;
+      font-size: 0.875rem;
+      text-align: center;
+      min-height: 20px;
+      line-height: 1.5;
+    }
     .success { color: #16a34a; }
     .error { color: #dc2626; }
+    .processing { color: #686868; }
+
+    .spam-note {
+      margin-top: 14px;
+      font-size: 0.78rem;
+      color: #918C8C;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -151,13 +164,11 @@
 
       <label>CSV File</label>
 
-      <!-- Empty state -->
       <div class="file-drop" id="file-drop" onclick="document.getElementById('csv').click()">
         <input type="file" id="csv" name="csv" accept=".csv" />
         <div class="drop-label"><span>Choose file</span> or drag and drop</div>
       </div>
 
-      <!-- Filled state -->
       <div class="file-filled" id="file-filled">
         <div class="check">✓</div>
         <span class="file-name-text" id="file-name-text"></span>
@@ -166,18 +177,29 @@
 
       <button type="submit" id="btn">Enrich &amp; Send</button>
     </form>
+
     <div id="status"></div>
-    <p style="margin-top:14px; font-size:0.78rem; color:#918C8C; text-align:center;">
+    <p class="spam-note" id="spam-note" style="display:none;">
       Don't see the email? Check your spam folder.
     </p>
   </div>
 
   <script>
-    const csvInput    = document.getElementById('csv');
-    const fileDrop    = document.getElementById('file-drop');
-    const fileFilled  = document.getElementById('file-filled');
+    const csvInput     = document.getElementById('csv');
+    const fileDrop     = document.getElementById('file-drop');
+    const fileFilled   = document.getElementById('file-filled');
     const fileNameText = document.getElementById('file-name-text');
-    const removeBtn   = document.getElementById('remove-btn');
+    const removeBtn    = document.getElementById('remove-btn');
+    const statusEl     = document.getElementById('status');
+    const spamNote     = document.getElementById('spam-note');
+    const btn          = document.getElementById('btn');
+
+    let pollTimer = null;
+
+    function setStatus(text, cls) {
+      statusEl.textContent = text;
+      statusEl.className = cls || '';
+    }
 
     function showFile(name) {
       fileNameText.textContent = name;
@@ -192,6 +214,33 @@
       fileFilled.style.display = 'none';
     }
 
+    function stopPolling() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    }
+
+    async function pollStatus() {
+      try {
+        const res  = await fetch('/api/status');
+        const data = await res.json();
+
+        if (data.status === 'done') {
+          stopPolling();
+          btn.disabled = false;
+          btn.textContent = 'Enrich & Send';
+          setStatus('Done! Enriched CSV sent to your email.', 'success');
+          spamNote.style.display = '';
+        } else if (data.status === 'failed') {
+          stopPolling();
+          btn.disabled = false;
+          btn.textContent = 'Enrich & Send';
+          setStatus(`Error: ${data.error || 'Something went wrong during processing.'}`, 'error');
+        }
+        // still 'running' — keep polling
+      } catch {
+        // network hiccup — keep polling
+      }
+    }
+
     csvInput.addEventListener('change', function () {
       if (this.files[0]) showFile(this.files[0].name);
     });
@@ -200,38 +249,48 @@
 
     document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      stopPolling();
+      spamNote.style.display = 'none';
 
       if (!csvInput.files[0]) {
-        const status = document.getElementById('status');
-        status.textContent = 'Please select a CSV file.';
-        status.className = 'error';
+        setStatus('Please select a CSV file.', 'error');
         return;
       }
 
-      const btn    = document.getElementById('btn');
-      const status = document.getElementById('status');
-
       btn.disabled = true;
       btn.textContent = 'Submitting...';
-      status.textContent = '';
-      status.className = '';
+      setStatus('', '');
 
       try {
         const res  = await fetch('/api/upload', { method: 'POST', body: new FormData(e.target) });
         const data = await res.json();
-        if (res.ok) {
-          status.textContent = data.message;
-          status.className = 'success';
-          e.target.reset();
-          clearFile();
-        } else {
-          status.textContent = data.error || 'Something went wrong.';
-          status.className = 'error';
+
+        if (!res.ok) {
+          setStatus(data.error || 'Upload failed.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Enrich & Send';
+          return;
         }
+
+        // Upload accepted — start polling for pipeline result
+        e.target.reset();
+        clearFile();
+        setStatus('Processing your CSV, this may take a minute...', 'processing');
+        btn.textContent = 'Processing...';
+        pollTimer = setInterval(pollStatus, 4000);
+
+        // Hard timeout after 5 minutes
+        setTimeout(() => {
+          if (pollTimer) {
+            stopPolling();
+            btn.disabled = false;
+            btn.textContent = 'Enrich & Send';
+            setStatus('Timed out waiting for a response. Check your email or try again.', 'error');
+          }
+        }, 5 * 60 * 1000);
+
       } catch {
-        status.textContent = 'Network error. Please try again.';
-        status.className = 'error';
-      } finally {
+        setStatus('Network error. Please try again.', 'error');
         btn.disabled = false;
         btn.textContent = 'Enrich & Send';
       }
