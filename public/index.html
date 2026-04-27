@@ -179,7 +179,7 @@
     </form>
 
     <div id="status"></div>
-    <p class="spam-note" id="spam-note" style="display:none;">
+    <p class="spam-note" id="spam-note">
       Don't see the email? Check your spam folder.
     </p>
   </div>
@@ -228,7 +228,6 @@
           btn.disabled = false;
           btn.textContent = 'Enrich & Send';
           setStatus('Done! Enriched CSV sent to your email.', 'success');
-          spamNote.style.display = '';
         } else if (data.status === 'failed') {
           stopPolling();
           btn.disabled = false;
@@ -250,7 +249,6 @@
     document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
       stopPolling();
-      spamNote.style.display = 'none';
 
       if (!csvInput.files[0]) {
         setStatus('Please select a CSV file.', 'error');
