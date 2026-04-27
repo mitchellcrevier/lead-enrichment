@@ -52,20 +52,23 @@ router.post('/upload', upload.single('csv'), (req, res) => {
         const insights = await generateSalesInsights({ companyName, profile, newsArticles });
         log.push(`  AI Step 2 done for ${companyName}`);
 
-        row['Industry'] = profile.industry;
-        row['Sub-Industry'] = profile.subIndustry;
-        row['Primary Product / Service'] = profile.primaryProduct;
-        row['Target Customer (ICP)'] = profile.targetCustomer;
-        row['Estimated Company Size'] = profile.estimatedSize;
-        row['Key Offering Summary'] = profile.keyOffering;
-        row['Recent News Summary'] = insights.recentNewsSummary;
-        row['Sales Angle 1'] = insights.salesAngle1;
-        row['Sales Angle 2'] = insights.salesAngle2;
-        row['Sales Angle 3'] = insights.salesAngle3;
-        row['Risk Signal 1'] = insights.riskSignal1;
-        row['Risk Signal 2'] = insights.riskSignal2;
-        row['Risk Signal 3'] = insights.riskSignal3;
-        row['Data Sources Used'] = 'Company Website, DuckDuckGo Instant Answer, NewsAPI, Groq AI';
+        const columns = Object.keys(row);
+        const set = (col, val) => { if (columns.includes(col)) row[col] = val; };
+
+        set('Industry', profile.industry);
+        set('Sub-Industry', profile.subIndustry);
+        set('Primary Product / Service', profile.primaryProduct);
+        set('Target Customer (ICP)', profile.targetCustomer);
+        set('Estimated Company Size', profile.estimatedSize);
+        set('Key Offering Summary', profile.keyOffering);
+        set('Recent News Summary', insights.recentNewsSummary);
+        set('Sales Angle 1', insights.salesAngle1);
+        set('Sales Angle 2', insights.salesAngle2);
+        set('Sales Angle 3', insights.salesAngle3);
+        set('Risk Signal 1', insights.riskSignal1);
+        set('Risk Signal 2', insights.riskSignal2);
+        set('Risk Signal 3', insights.riskSignal3);
+        set('Data Sources Used', 'Company Website, DuckDuckGo Instant Answer, NewsAPI, Groq AI');
       }
 
       const csvContent = generateCSV(rows);
