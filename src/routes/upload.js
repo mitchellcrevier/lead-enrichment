@@ -13,6 +13,9 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
+// In-memory store for last pipeline run result
+let lastRun = null;
+
 router.post('/upload', upload.single('csv'), (req, res) => {
   const { email } = req.body;
 
@@ -20,27 +23,34 @@ router.post('/upload', upload.single('csv'), (req, res) => {
     return res.status(400).json({ error: 'CSV file and recipient email are required.' });
   }
 
-  // Respond immediately — enrichment runs async in the background
   res.json({ message: 'Processing started. You will receive the enriched CSV by email shortly.' });
 
   (async () => {
+    const log = [];
+    const start = Date.now();
+    lastRun = { status: 'running', email, log, startedAt: new Date().toISOString() };
+
     try {
       const rows = parseCSV(req.file.buffer);
-      logInfo('upload', `Processing ${rows.length} companies for ${email}`);
+      log.push(`Parsed ${rows.length} rows`);
 
       for (const row of rows) {
         const companyName = row['Company Name'];
         const website = row['Website'];
-        logInfo('upload', `Enriching: ${companyName}`);
+        log.push(`Enriching: ${companyName}`);
 
         const [websiteText, ddgData, newsArticles] = await Promise.all([
           scrapeWebsite(website),
           getDuckDuckGoData(companyName),
           getNewsData(companyName),
         ]);
+        log.push(`  Data fetched for ${companyName} (website: ${websiteText.length} chars, news: ${newsArticles.length} articles)`);
 
         const profile = await extractCompanyProfile({ companyName, website, websiteText, ddgData });
+        log.push(`  AI Step 1 done for ${companyName}: ${profile.industry}`);
+
         const insights = await generateSalesInsights({ companyName, profile, newsArticles });
+        log.push(`  AI Step 2 done for ${companyName}`);
 
         row['Industry'] = profile.industry;
         row['Sub-Industry'] = profile.subIndustry;
@@ -59,15 +69,29 @@ router.post('/upload', upload.single('csv'), (req, res) => {
       }
 
       const csvContent = generateCSV(rows);
+      log.push(`CSV generated (${csvContent.length} chars), sending to ${email}...`);
+
       await sendEnrichedCSV(email, csvContent);
-      logInfo('upload', `Enriched CSV sent to ${email}`);
+      log.push(`Email sent successfully`);
+
+      lastRun.status = 'done';
+      lastRun.durationMs = Date.now() - start;
+      logInfo('upload', `Done in ${lastRun.durationMs}ms`);
     } catch (err) {
+      log.push(`ERROR: ${err.message}`);
+      lastRun.status = 'failed';
+      lastRun.error = err.message;
       logError('upload.pipeline', err);
     }
   })();
 });
 
-// Diagnostic endpoint — hit /api/test on Railway to check each service
+// Check the result of the last pipeline run
+router.get('/status', (req, res) => {
+  res.json(lastRun || { status: 'no runs yet' });
+});
+
+// Diagnostic endpoint
 router.get('/test', async (req, res) => {
   const results = {};
 
@@ -78,7 +102,6 @@ router.get('/test', async (req, res) => {
     ]);
   }
 
-  // 1. Env vars (instant)
   results.env = {
     GROQ_API_KEY: !!process.env.GROQ_API_KEY,
     MAILJET_API_KEY: !!process.env.MAILJET_API_KEY,
@@ -87,7 +110,6 @@ router.get('/test', async (req, res) => {
     NEWS_API_KEY: !!process.env.NEWS_API_KEY,
   };
 
-  // 2. Mailjet
   try {
     const Mailjet = require('node-mailjet');
     const client = Mailjet.apiConnect(process.env.MAILJET_API_KEY, process.env.MAILJET_SECRET_KEY);
@@ -97,7 +119,6 @@ router.get('/test', async (req, res) => {
     results.mailjet = `FAILED: ${err.message}`;
   }
 
-  // 3. Groq
   try {
     const Groq = require('groq-sdk');
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -114,7 +135,6 @@ router.get('/test', async (req, res) => {
     results.groq = `FAILED: ${err.message}`;
   }
 
-  // 4. NewsAPI
   try {
     const axios = require('axios');
     const { data } = await axios.get('https://newsapi.org/v2/everything', {
@@ -126,7 +146,6 @@ router.get('/test', async (req, res) => {
     results.newsapi = `FAILED: ${err.message}`;
   }
 
-  // 5. DuckDuckGo
   try {
     const axios = require('axios');
     await axios.get('https://api.duckduckgo.com/?q=Apple&format=json', { timeout: 8000 });
