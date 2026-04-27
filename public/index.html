@@ -21,10 +21,7 @@
       gap: 10px;
       margin-bottom: 24px;
     }
-    .logo-wrap img {
-      width: 27px;
-      height: 29px;
-    }
+    .logo-wrap img { width: 27px; height: 29px; }
     .logo-wrap span {
       font-size: 1.15rem;
       font-weight: 700;
@@ -53,8 +50,10 @@
       outline: none;
       transition: border-color 0.15s;
     }
-    input[type="email"]:focus { border-color: #FFD33B; box-shadow: 0 0 0 3px rgba(255,173,59,0.12); }
-    .file-input-wrapper {
+    input[type="email"]:focus { border-color: #FFD33B; box-shadow: 0 0 0 3px rgba(255,211,59,0.15); }
+
+    /* Empty state — dashed drop zone */
+    .file-drop {
       border: 2px dashed #e0e0e0;
       border-radius: 6px;
       padding: 20px;
@@ -63,12 +62,61 @@
       cursor: pointer;
       transition: border-color 0.15s, background 0.15s;
     }
-    .file-input-wrapper:hover { border-color: #FFD33B; background: #FFFAEB; }
-    .file-input-wrapper input { display: none; }
-    .file-label { font-size: 0.875rem; color: #686868; }
-    .file-label span { color: #020202; font-weight: 600; }
-    #file-name { font-size: 0.8rem; color: #FFD33B; margin-top: 6px; font-weight: 500; }
-    button {
+    .file-drop:hover { border-color: #FFD33B; background: #FFFAEB; }
+    .file-drop .drop-label { font-size: 0.875rem; color: #686868; }
+    .file-drop .drop-label span { color: #020202; font-weight: 600; }
+
+    /* Filled state */
+    .file-filled {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 20px;
+      background: #fafafa;
+    }
+    .file-filled .check {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      background: #FFD33B;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: #020202;
+      font-weight: 700;
+    }
+    .file-filled .file-name-text {
+      flex: 1;
+      font-size: 0.875rem;
+      color: #020202;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-filled .remove-btn {
+      flex-shrink: 0;
+      width: auto;
+      padding: 4px 8px;
+      background: none;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: #686868;
+      cursor: pointer;
+      font-weight: 500;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .file-filled .remove-btn:hover { border-color: #dc2626; color: #dc2626; background: none; }
+
+    input[type="file"] { display: none; }
+
+    button[type="submit"] {
       width: 100%;
       padding: 12px;
       background: #FFD33B;
@@ -80,8 +128,8 @@
       cursor: pointer;
       transition: background 0.15s;
     }
-    button:hover:not(:disabled) { background: #f0c520; }
-    button:disabled { background: #e0e0e0; color: #999; cursor: not-allowed; }
+    button[type="submit"]:hover:not(:disabled) { background: #f0c520; }
+    button[type="submit"]:disabled { background: #e0e0e0; color: #999; cursor: not-allowed; }
     #status { margin-top: 16px; font-size: 0.875rem; text-align: center; min-height: 20px; }
     .success { color: #16a34a; }
     .error { color: #dc2626; }
@@ -102,10 +150,18 @@
       <input type="email" id="email" name="email" placeholder="you@example.com" required />
 
       <label>CSV File</label>
-      <div class="file-input-wrapper" onclick="document.getElementById('csv').click()">
-        <input type="file" id="csv" name="csv" accept=".csv" required />
-        <div class="file-label"><span>Choose file</span> or drag and drop</div>
-        <div id="file-name"></div>
+
+      <!-- Empty state -->
+      <div class="file-drop" id="file-drop" onclick="document.getElementById('csv').click()">
+        <input type="file" id="csv" name="csv" accept=".csv" />
+        <div class="drop-label"><span>Choose file</span> or drag and drop</div>
+      </div>
+
+      <!-- Filled state -->
+      <div class="file-filled" id="file-filled">
+        <div class="check">✓</div>
+        <span class="file-name-text" id="file-name-text"></span>
+        <button type="button" class="remove-btn" id="remove-btn">✕ Remove</button>
       </div>
 
       <button type="submit" id="btn">Enrich &amp; Send</button>
@@ -114,13 +170,42 @@
   </div>
 
   <script>
-    document.getElementById('csv').addEventListener('change', function () {
-      document.getElementById('file-name').textContent = this.files[0]?.name || '';
+    const csvInput    = document.getElementById('csv');
+    const fileDrop    = document.getElementById('file-drop');
+    const fileFilled  = document.getElementById('file-filled');
+    const fileNameText = document.getElementById('file-name-text');
+    const removeBtn   = document.getElementById('remove-btn');
+
+    function showFile(name) {
+      fileNameText.textContent = name;
+      fileDrop.style.display   = 'none';
+      fileFilled.style.display = 'flex';
+    }
+
+    function clearFile() {
+      csvInput.value           = '';
+      fileNameText.textContent = '';
+      fileDrop.style.display   = '';
+      fileFilled.style.display = 'none';
+    }
+
+    csvInput.addEventListener('change', function () {
+      if (this.files[0]) showFile(this.files[0].name);
     });
+
+    removeBtn.addEventListener('click', clearFile);
 
     document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const btn = document.getElementById('btn');
+
+      if (!csvInput.files[0]) {
+        const status = document.getElementById('status');
+        status.textContent = 'Please select a CSV file.';
+        status.className = 'error';
+        return;
+      }
+
+      const btn    = document.getElementById('btn');
       const status = document.getElementById('status');
 
       btn.disabled = true;
@@ -129,16 +214,13 @@
       status.className = '';
 
       try {
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          body: new FormData(e.target),
-        });
+        const res  = await fetch('/api/upload', { method: 'POST', body: new FormData(e.target) });
         const data = await res.json();
         if (res.ok) {
           status.textContent = data.message;
           status.className = 'success';
           e.target.reset();
-          document.getElementById('file-name').textContent = '';
+          clearFile();
         } else {
           status.textContent = data.error || 'Something went wrong.';
           status.className = 'error';
