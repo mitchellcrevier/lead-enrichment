@@ -1,0 +1,23 @@
+{
+  "name": "lead-enrichment",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "csv-parse": "^5.5.6",
+    "csv-stringify": "^6.4.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "groq-sdk": "^1.1.2",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.7",
+    "resend": "^3.4.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lead Enrichment</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f4f4f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 40px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 6px; }
+    .subtitle { color: #666; font-size: 0.875rem; margin-bottom: 28px; line-height: 1.5; }
+    label { display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; color: #333; }
+    input[type="email"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      margin-bottom: 18px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="email"]:focus { border-color: #000; }
+    .file-input-wrapper {
+      border: 2px dashed #e0e0e0;
+      border-radius: 6px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 20px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .file-input-wrapper:hover { border-color: #999; }
+    .file-input-wrapper input { display: none; }
+    .file-label { font-size: 0.875rem; color: #666; }
+    .file-label span { color: #000; font-weight: 600; }
+    #file-name { font-size: 0.8rem; color: #16a34a; margin-top: 6px; }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #000;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover:not(:disabled) { background: #222; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+    #status { margin-top: 16px; font-size: 0.875rem; text-align: center; min-height: 20px; }
+    .success { color: #16a34a; }
+    .error { color: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Lead Enrichment</h1>
+    <p class="subtitle">Upload a CSV of companies. We'll enrich each one with industry data, sales angles, risk signals, and recent news — then email you the results.</p>
+
+    <form id="form">
+      <label for="email">Recipient Email</label>
+      <input type="email" id="email" name="email" placeholder="you@example.com" required />
+
+      <label>CSV File</label>
+      <div class="file-input-wrapper" onclick="document.getElementById('csv').click()">
+        <input type="file" id="csv" name="csv" accept=".csv" required />
+        <div class="file-label"><span>Choose file</span> or drag and drop</div>
+        <div id="file-name"></div>
+      </div>
+
+      <button type="submit" id="btn">Enrich &amp; Send</button>
+    </form>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    document.getElementById('csv').addEventListener('change', function () {
+      document.getElementById('file-name').textContent = this.files[0]?.name || '';
+    });
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn');
+      const status = document.getElementById('status');
+
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+      status.textContent = '';
+      status.className = '';
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: new FormData(e.target),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          status.textContent = data.message;
+          status.className = 'success';
+          e.target.reset();
+          document.getElementById('file-name').textContent = '';
+        } else {
+          status.textContent = data.error || 'Something went wrong.';
+          status.className = 'error';
+        }
+      } catch {
+        status.textContent = 'Network error. Please try again.';
+        status.className = 'error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enrich & Send';
+      }
+    });
+  </script>
+</body>
+</html>
