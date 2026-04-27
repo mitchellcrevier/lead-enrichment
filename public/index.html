@@ -3,28 +3,46 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lead Enrichment</title>
+  <title>Hemut — Lead Enrichment</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: system-ui, -apple-system, sans-serif;
-      background: #f4f4f5;
+      background: #FFFAEB;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
     }
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .logo-wrap img {
+      width: 27px;
+      height: 29px;
+    }
+    .logo-wrap span {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #020202;
+    }
     .card {
       background: white;
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 40px;
       width: 100%;
       max-width: 460px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+      border-top: 3px solid #FFD33B;
     }
-    h1 { font-size: 1.4rem; margin-bottom: 6px; }
-    .subtitle { color: #666; font-size: 0.875rem; margin-bottom: 28px; line-height: 1.5; }
-    label { display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; color: #333; }
+    h1 { font-size: 1.35rem; margin-bottom: 6px; color: #020202; }
+    .subtitle { color: #686868; font-size: 0.875rem; margin-bottom: 28px; line-height: 1.6; }
+    label { display: block; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; color: #333; }
     input[type="email"] {
       width: 100%;
       padding: 10px 12px;
@@ -35,7 +53,7 @@
       outline: none;
       transition: border-color 0.15s;
     }
-    input[type="email"]:focus { border-color: #000; }
+    input[type="email"]:focus { border-color: #FFD33B; box-shadow: 0 0 0 3px rgba(255,173,59,0.12); }
     .file-input-wrapper {
       border: 2px dashed #e0e0e0;
       border-radius: 6px;
@@ -43,36 +61,41 @@
       text-align: center;
       margin-bottom: 20px;
       cursor: pointer;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, background 0.15s;
     }
-    .file-input-wrapper:hover { border-color: #999; }
+    .file-input-wrapper:hover { border-color: #FFD33B; background: #FFFAEB; }
     .file-input-wrapper input { display: none; }
-    .file-label { font-size: 0.875rem; color: #666; }
-    .file-label span { color: #000; font-weight: 600; }
-    #file-name { font-size: 0.8rem; color: #16a34a; margin-top: 6px; }
+    .file-label { font-size: 0.875rem; color: #686868; }
+    .file-label span { color: #020202; font-weight: 600; }
+    #file-name { font-size: 0.8rem; color: #FFD33B; margin-top: 6px; font-weight: 500; }
     button {
       width: 100%;
       padding: 12px;
-      background: #000;
-      color: white;
+      background: #FFD33B;
+      color: #020202;
       border: none;
       border-radius: 6px;
       font-size: 0.95rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       transition: background 0.15s;
     }
-    button:hover:not(:disabled) { background: #222; }
-    button:disabled { background: #aaa; cursor: not-allowed; }
+    button:hover:not(:disabled) { background: #f0c520; }
+    button:disabled { background: #e0e0e0; color: #999; cursor: not-allowed; }
     #status { margin-top: 16px; font-size: 0.875rem; text-align: center; min-height: 20px; }
     .success { color: #16a34a; }
     .error { color: #dc2626; }
   </style>
 </head>
 <body>
+  <div class="logo-wrap">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAdCAYAAABbjRdIAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAHpSURBVHgBrVZLUgIxEH0Ng2uOMO797vxWjTfQE+icQD2BeAL1BMoNvIFYhW6hoCyXcAQWrPhM7ISfQJLpVPE2E+jOvOmXTncTAqHaZwmUukYB/ERsd1Ip7X2/rf5NkJL8nBwgoydeJl5HwhvtfKU2UwQJUev8Eln2yssy/ERdDEuPbnMe0e9RjFGxkUtknO3yzZAf2bj4ISLS8u26iTQKPiOf04MzCZaJvPIt3FxEOuugPiACXdBuvZbnZY3MnBOpV8iIXiREGvYzGxfF8tFO/Q5CrEWmWic3THQDCYalCwRgiczIV6AH0c6MHumw1kUAlhJEtU91QiSCXSzf1zYCMT8zk+aZjMgnn2oksdVQRs9ENq0SHYiI1BUdfjfnL+8kZfQHt2xM4FNlVNqeRDapEnlMNQyj9P85qfbxLfrDCtvyaua93hdN5Ysdbj3OzHcQVVfv0mQfVSD4SL4ez3oVYbBV5WfV6ubINjGRkT1KFz8DYe4hkay6rHSBIDKTSPp8ZdVlrYkWEIKAMmbrAvKxIEQ+RxcQRRZcxhxdQCZjSBfYr1dc5lyyTXYB/1iw4S7gH3hGRZ0QMXLBVcIj3wzOyEzdk7WbJkZRCgGsqS+fFemFiSosXw8CuGYQ16zIL6UuPz+Z5Dm0U/8Bzq/PyQbuiSEAAAAASUVORK5CYII=" alt="Hemut logo" />
+    <span>Hemut</span>
+  </div>
+
   <div class="card">
     <h1>Lead Enrichment</h1>
-    <p class="subtitle">Upload a CSV of companies. We'll enrich each one with industry data, sales angles, risk signals, and recent news — then email you the results.</p>
+    <p class="subtitle">Upload a CSV of companies. We'll enrich each one with industry data, sales angles, risk signals, and recent news, then email you the results.</p>
 
     <form id="form">
       <label for="email">Recipient Email</label>
